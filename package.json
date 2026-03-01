@@ -1,6 +1,6 @@
 {
   "name": "@stripfeed/mcp-server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MCP server for StripFeed - convert any URL to clean Markdown for AI agents",
   "main": "dist/index.js",
   "bin": {
