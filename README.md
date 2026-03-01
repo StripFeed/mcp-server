@@ -1,5 +1,9 @@
 # StripFeed MCP Server
 
+<a href="https://glama.ai/mcp/servers/@StripFeed/stripfeed-mcp-server">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@StripFeed/stripfeed-mcp-server/badge" alt="StripFeed MCP Server" />
+</a>
+
 MCP server for [StripFeed](https://www.stripfeed.dev) - convert any URL to clean, token-efficient Markdown.
 
 Works with Claude Code, Cursor, Windsurf, and any MCP-compatible client.
