@@ -4,6 +4,10 @@ MCP server for [StripFeed](https://www.stripfeed.dev) - convert any URL to clean
 
 Works with Claude Code, Cursor, Windsurf, and any MCP-compatible client.
 
+<a href="https://glama.ai/mcp/servers/@StripFeed/stripfeed-mcp-server">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@StripFeed/stripfeed-mcp-server/badge" alt="stripfeed-mcp-server MCP server" />
+</a>
+
 ## Setup
 
 ### 1. Get your API key
