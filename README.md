@@ -101,9 +101,16 @@ Fetch multiple URLs in parallel (up to 10).
 
 The MCP server uses your StripFeed API key. Usage counts toward your plan limits:
 
-- **Free:** 500 requests/month, 1 API key
+- **Free:** 200 requests/month, 1 API key
 - **Pro:** 100K requests/month, unlimited keys ($19/mo)
 - **Enterprise:** Unlimited
+
+## Links
+
+- [API Docs](https://www.stripfeed.dev/docs)
+- [TypeScript SDK](https://www.npmjs.com/package/stripfeed)
+- [Python SDK](https://pypi.org/project/stripfeed/)
+- [GitHub](https://github.com/StripFeed/mcp-server)
 
 ## License
 

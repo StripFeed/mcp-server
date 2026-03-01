@@ -1,6 +1,6 @@
 {
   "name": "@stripfeed/mcp-server",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "MCP server for StripFeed - convert any URL to clean Markdown for AI agents",
   "main": "dist/index.js",
   "bin": {
@@ -17,11 +17,18 @@
   },
   "keywords": [
     "mcp",
+    "mcp-server",
     "stripfeed",
     "markdown",
+    "html-to-markdown",
     "ai",
     "llm",
-    "web-scraping"
+    "rag",
+    "web-scraping",
+    "claude-code",
+    "cursor",
+    "windsurf",
+    "content-extraction"
   ],
   "author": "StripFeed",
   "license": "MIT",
@@ -29,7 +36,7 @@
   "bugs": {
     "url": "https://github.com/StripFeed/mcp-server/issues"
   },
-  "homepage": "https://github.com/StripFeed/mcp-server#readme",
+  "homepage": "https://www.stripfeed.dev/docs#mcp",
   "files": [
     "dist"
   ],
