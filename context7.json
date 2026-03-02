@@ -1,0 +1,16 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "StripFeed MCP Server",
+  "description": "MCP server for StripFeed API. Convert any URL to clean, token-efficient Markdown for AI agents. Works with Claude Code, Cursor, Windsurf, and any MCP-compatible client.",
+  "excludeFolders": ["node_modules", "dist"],
+  "excludeFiles": ["CHANGELOG.md"],
+  "rules": [
+    "Requires STRIPFEED_API_KEY environment variable (get one at https://www.stripfeed.dev/dashboard/keys)",
+    "Install via: npx -y @stripfeed/mcp-server",
+    "Exposes three tools: fetch_url, batch_fetch, check_usage",
+    "fetch_url accepts: url (required), format, selector, model, cache, ttl, max_tokens",
+    "batch_fetch accepts: urls (array of 1-10 URLs), model",
+    "check_usage takes no parameters, returns plan/usage/limit/remaining",
+    "Authentication is via Bearer token in the STRIPFEED_API_KEY env var"
+  ]
+}

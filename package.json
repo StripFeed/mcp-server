@@ -28,7 +28,15 @@
     "claude-code",
     "cursor",
     "windsurf",
-    "content-extraction"
+    "content-extraction",
+    "model-context-protocol",
+    "anthropic",
+    "openai",
+    "chatgpt",
+    "text-extraction",
+    "url-to-markdown",
+    "ai-agent",
+    "mcp-tool"
   ],
   "author": "StripFeed",
   "license": "MIT",
