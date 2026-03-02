@@ -15,7 +15,7 @@ Works with Claude Code, Cursor, Windsurf, and any MCP-compatible client.
 
 ### 1. Get your API key
 
-Sign up at [stripfeed.dev](https://www.stripfeed.dev/dashboard/keys) and create an API key.
+Sign up at [stripfeed.dev](https://www.stripfeed.dev/dashboard/keys) and create an API key. Keys start with `sf_live_`.
 
 ### 2. Install
 
@@ -73,58 +73,346 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ### `fetch_url`
 
-Convert a single URL to clean Markdown.
+Convert a single URL to clean Markdown. Strips ads, navigation, scripts, and boilerplate. Returns clean content ready for LLM consumption.
 
 **Parameters:**
+
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| url | string | Yes | URL to fetch and convert |
-| format | string | No | Output format: markdown (default), json, text, html |
-| selector | string | No | CSS selector to extract specific elements |
-| model | string | No | AI model ID for cost tracking |
-| cache | boolean | No | Set to false to bypass cache |
+| url | string | Yes | URL to fetch and convert (http/https) |
+| format | string | No | Output format: `markdown` (default), `json`, `text`, `html` |
+| selector | string | No | CSS selector to extract specific elements (e.g. `article`, `.content`, `#main`) |
+| model | string | No | AI model ID for cost tracking (e.g. `claude-sonnet-4-6`) |
+| cache | boolean | No | Set to `false` to bypass cache and force fresh fetch |
 | ttl | number | No | Cache TTL in seconds (default 3600, max 86400) |
-| max_tokens | number | No | Truncate output to fit within a token budget |
+| max_tokens | number | No | Truncate output to fit within this token budget (positive integer) |
 
-**Example usage in Claude Code:**
+**Example: Basic fetch**
 
-> "Fetch https://react.dev/learn and summarize the key concepts"
+Prompt: "Fetch https://react.dev/learn and summarize the key concepts"
 
-> "Get the pricing table from https://stripe.com/pricing using selector '.pricing-table'"
+The tool calls `fetch_url` with `url: "https://react.dev/learn"` and returns:
+
+```
+Title: Quick Start - React | Tokens: 2,450 (saved 91.2% from 27,840) | Cache: MISS | Fetch: 342ms
+
+---
+
+# Quick Start
+
+Welcome to the React documentation! This page will give you an introduction to 80% of the React concepts...
+```
+
+**Example: Extract with CSS selector**
+
+Prompt: "Get the pricing table from https://stripe.com/pricing using selector '.pricing-table'"
+
+The tool calls `fetch_url` with `url: "https://stripe.com/pricing"` and `selector: ".pricing-table"` and returns only the content matching that CSS selector.
+
+**Example: Plain text output**
+
+Prompt: "Fetch https://example.com as plain text"
+
+The tool calls `fetch_url` with `url: "https://example.com"` and `format: "text"`. Returns plain text with all Markdown formatting stripped (no headings, bold, links, etc.).
+
+**Example: Truncate to token budget**
+
+Prompt: "Fetch https://en.wikipedia.org/wiki/Rust_(programming_language) but limit to 500 tokens"
+
+The tool calls `fetch_url` with `url: "https://en.wikipedia.org/wiki/Rust_(programming_language)"` and `max_tokens: 500`. The output is truncated at a paragraph or sentence boundary to fit within 500 tokens. The response metadata shows `Truncated: yes`.
+
+**Example: Custom cache TTL**
+
+Prompt: "Fetch https://news.ycombinator.com with a 2-hour cache"
+
+The tool calls `fetch_url` with `url: "https://news.ycombinator.com"` and `ttl: 7200`. The content is cached for 7200 seconds (2 hours) instead of the default 3600 (1 hour). Subsequent requests within that window return instantly from cache.
+
+**Example: Bypass cache**
+
+Prompt: "Fetch https://news.ycombinator.com with fresh content, don't use cache"
+
+The tool calls `fetch_url` with `url: "https://news.ycombinator.com"` and `cache: false`. Forces a fresh fetch even if cached content exists.
 
 ### `batch_fetch`
 
-Fetch multiple URLs in parallel (up to 10).
+Fetch multiple URLs in parallel and convert them all to clean Markdown. Process up to 10 URLs in a single call. Requires Pro plan.
 
 **Parameters:**
+
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | urls | string[] | Yes | Array of URLs to fetch (1-10) |
 | model | string | No | AI model ID for cost tracking |
 
-**Example usage in Claude Code:**
+**Example: Compare multiple pages**
 
-> "Fetch the React, Vue, and Svelte docs and compare their approaches to state management"
+Prompt: "Fetch the React, Vue, and Svelte docs and compare their approaches to state management"
+
+The tool calls `batch_fetch` with `urls: ["https://react.dev/learn", "https://vuejs.org/guide/introduction.html", "https://svelte.dev/docs/introduction"]` and returns all three pages as Markdown sections:
+
+```
+Fetched 3/3 URLs successfully.
+
+---
+
+## Quick Start - React
+
+Source: https://react.dev/learn | 2,450 tokens (saved 91.2% from 27,840)
+
+# Quick Start
+...
+
+---
+
+## Introduction - Vue.js
+
+Source: https://vuejs.org/guide/introduction.html | 1,890 tokens (saved 88.5% from 16,400)
+
+# Introduction
+...
+
+---
+
+## Introduction / Svelte
+
+Source: https://svelte.dev/docs/introduction | 1,120 tokens (saved 93.1% from 16,200)
+
+# Introduction
+...
+```
+
+**Handling failures:** If a URL fails (unreachable, timeout, invalid), it gets a per-item error and the other URLs still succeed:
+
+```
+Fetched 2/3 URLs successfully.
+
+---
+
+## Quick Start - React
+
+Source: https://react.dev/learn | 2,450 tokens (saved 91.2% from 27,840)
+
+# Quick Start
+...
+
+---
+
+## https://invalid-url.example
+
+Error: Target URL unreachable
+
+---
+
+## Introduction - Vue.js
+
+Source: https://vuejs.org/guide/introduction.html | 1,890 tokens (saved 88.5% from 16,400)
+
+# Introduction
+...
+```
+
+**Note on selectors:** The `batch_fetch` tool sends plain URL strings. To use CSS selectors on individual URLs in a batch, use the REST API directly:
+
+```bash
+curl -X POST "https://www.stripfeed.dev/api/v1/batch" \
+  -H "Authorization: Bearer sf_live_your_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "urls": [
+      "https://example.com",
+      {"url": "https://docs.anthropic.com", "selector": "article"},
+      {"url": "https://stripe.com/pricing", "selector": ".pricing-table"}
+    ]
+  }'
+```
+
+Each URL item in the array can be a plain string or an object with `url` and optional `selector`.
 
 ### `check_usage`
 
 Check your current monthly API usage and plan limits. Takes no parameters.
 
-**Example usage in Claude Code:**
+**Example response:**
 
-> "How many API calls do I have left this month?"
+```
+Plan: pro
+Usage: 1,250 / 100,000
+Remaining: 98,750
+Resets: 2026-04-01T00:00:00.000Z
+```
+
+For free plan users:
+
+```
+Plan: free
+Usage: 42 / 200
+Remaining: 158
+Resets: 2026-04-01T00:00:00.000Z
+```
+
+For enterprise plan users (unlimited):
+
+```
+Plan: enterprise
+Usage: 54,200 (unlimited)
+Resets: 2026-04-01T00:00:00.000Z
+```
+
+## Error Handling
+
+The MCP server returns clear error messages when something goes wrong:
+
+| Error | Cause | Resolution |
+|-------|-------|------------|
+| `STRIPFEED_API_KEY environment variable is required` | Missing API key | Set `STRIPFEED_API_KEY` env var |
+| `StripFeed API error 401: Missing or invalid Authorization header` | Invalid API key | Check your key at [dashboard/keys](https://www.stripfeed.dev/dashboard/keys) |
+| `StripFeed API error 422: Invalid URL` | Bad URL parameter | Ensure URL starts with http:// or https:// |
+| `StripFeed API error 422: No content found matching selector` | CSS selector matched nothing | Check the selector against the page's HTML |
+| `StripFeed API error 429: Rate limit exceeded` | Too many requests | Wait for the rate limit window to reset (20 req/s burst) |
+| `StripFeed API error 429: Monthly quota exceeded` | Plan limit reached | Upgrade to Pro or wait for monthly reset |
+| `StripFeed API error 502: Target URL unreachable` | Target site is down | Try again later or check the URL |
+| `StripFeed API error 504: Target URL timed out` | Target took >10s to respond | The target site is slow, try again later |
+
+## REST API
+
+The MCP server wraps the StripFeed REST API. You can also call the API directly:
+
+```bash
+# Single URL fetch (returns Markdown)
+curl "https://www.stripfeed.dev/api/v1/fetch?url=https://news.ycombinator.com" \
+  -H "Authorization: Bearer sf_live_your_key"
+
+# With options: JSON format, CSS selector, max 500 tokens
+curl "https://www.stripfeed.dev/api/v1/fetch?url=https://example.com&format=json&selector=article&max_tokens=500" \
+  -H "Authorization: Bearer sf_live_your_key"
+
+# Batch fetch (up to 10 URLs, with per-URL selectors)
+curl -X POST "https://www.stripfeed.dev/api/v1/batch" \
+  -H "Authorization: Bearer sf_live_your_key" \
+  -H "Content-Type: application/json" \
+  -d '{"urls": ["https://news.ycombinator.com", {"url": "https://docs.anthropic.com", "selector": "article"}]}'
+
+# Check usage
+curl "https://www.stripfeed.dev/api/v1/usage" \
+  -H "Authorization: Bearer sf_live_your_key"
+```
+
+**JSON response format** (when `format=json`):
+
+```json
+{
+  "markdown": "# Page Title\n\nClean content here...",
+  "html": "<article>...</article>",
+  "text": "Plain text version...",
+  "url": "https://example.com",
+  "title": "Page Title",
+  "tokens": 1250,
+  "originalTokens": 14200,
+  "savingsPercent": 91.2,
+  "cached": false,
+  "fetchMs": 342,
+  "format": "json",
+  "truncated": false,
+  "selector": "article",
+  "model": null
+}
+```
+
+**Response headers** (included with every response):
+
+| Header | Description |
+|--------|-------------|
+| `X-StripFeed-Tokens` | Token count of clean output |
+| `X-StripFeed-Original-Tokens` | Token count of original HTML |
+| `X-StripFeed-Savings-Percent` | Percentage of tokens saved |
+| `X-StripFeed-Cache` | `HIT` or `MISS` |
+| `X-StripFeed-Fetch-Ms` | Processing time in ms (0 for cache hits) |
+| `X-StripFeed-Truncated` | `true` when max_tokens caused truncation |
+
+**Usage response:**
+
+```json
+{
+  "plan": "pro",
+  "usage": 1250,
+  "limit": 100000,
+  "remaining": 98750,
+  "resetsAt": "2026-04-01T00:00:00.000Z"
+}
+```
+
+## SDKs
+
+For programmatic access without MCP, use the official SDKs:
+
+**TypeScript/JavaScript:**
+
+```typescript
+import StripFeed from "stripfeed";
+
+const sf = new StripFeed("sf_live_your_key");
+
+// Fetch a URL
+const result = await sf.fetch("https://example.com");
+console.log(result.markdown);
+console.log(`Tokens: ${result.tokens} (saved ${result.savingsPercent}%)`);
+
+// With options
+const article = await sf.fetch("https://example.com", {
+  selector: "article",
+  maxTokens: 500,
+  ttl: 7200,
+});
+
+// Batch fetch
+const batch = await sf.batch(["https://a.com", "https://b.com"]);
+
+// Check usage
+const usage = await sf.usage();
+console.log(`${usage.usage} / ${usage.limit} requests used`);
+```
+
+npm: https://www.npmjs.com/package/stripfeed
+
+**Python:**
+
+```python
+from stripfeed import StripFeed
+
+sf = StripFeed("sf_live_your_key")
+
+# Fetch a URL
+result = sf.fetch("https://example.com")
+print(result["markdown"])
+print(f"Tokens: {result['tokens']} (saved {result['savingsPercent']}%)")
+
+# With options
+article = sf.fetch("https://example.com", selector="article", max_tokens=500, ttl=7200)
+
+# Batch fetch
+batch = sf.batch(["https://a.com", "https://b.com"])
+
+# Check usage
+usage = sf.usage()
+print(f"{usage['usage']} / {usage['limit']} requests used")
+```
+
+PyPI: https://pypi.org/project/stripfeed/
 
 ## Pricing
 
 The MCP server uses your StripFeed API key. Usage counts toward your plan limits:
 
-- **Free:** 200 requests/month, 1 API key
-- **Pro:** 100K requests/month, unlimited keys ($19/mo)
-- **Enterprise:** Unlimited
+| Plan | Price | Requests/month | API Keys |
+|------|-------|----------------|----------|
+| Free | $0 | 200 | 1 |
+| Pro | $19/mo | 100,000 | Unlimited |
+| Enterprise | Custom | Unlimited | Unlimited |
 
 ## Links
 
 - [API Docs](https://www.stripfeed.dev/docs)
+- [OpenAPI Schema](https://www.stripfeed.dev/api/v1/openapi)
 - [TypeScript SDK](https://www.npmjs.com/package/stripfeed)
 - [Python SDK](https://pypi.org/project/stripfeed/)
 - [GitHub](https://github.com/StripFeed/mcp-server)
