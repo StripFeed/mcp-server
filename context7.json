@@ -1,24 +1,4 @@
 {
-  "$schema": "https://context7.com/schema/context7.json",
   "url": "https://context7.com/stripfeed/mcp-server",
-  "public_key": "pk_AqYVSL7rnxyp0HirTek9e",
-  "projectTitle": "StripFeed MCP Server",
-  "description": "MCP server for StripFeed API. Convert any URL to clean, token-efficient Markdown for AI agents. Works with Claude Code, Cursor, Windsurf, and any MCP-compatible client. Three tools: fetch_url, batch_fetch, check_usage.",
-  "excludeFolders": ["node_modules", "dist"],
-  "excludeFiles": ["CHANGELOG.md"],
-  "rules": [
-    "Requires STRIPFEED_API_KEY environment variable (get one at https://www.stripfeed.dev/dashboard/keys)",
-    "Install for Claude Code: claude mcp add stripfeed -- npx -y @stripfeed/mcp-server",
-    "fetch_url converts any URL to clean Markdown. Parameters: url (required), format (markdown|json|text|html), selector (CSS selector), model, cache (boolean), ttl (seconds, default 3600, max 86400), max_tokens (truncate to token budget)",
-    "When format=text, fetch_url returns plain text with all Markdown formatting stripped",
-    "When selector is provided, only content matching that CSS selector is returned. Returns 422 error if selector matches nothing",
-    "When max_tokens is set, output is truncated at paragraph/sentence boundary. Response metadata shows Truncated: yes",
-    "When ttl is set, content is cached for that many seconds. When cache=false, forces fresh fetch bypassing cache",
-    "batch_fetch processes up to 10 URLs in parallel. Parameters: urls (array of URL strings, 1-10), model. Requires Pro plan",
-    "In batch_fetch, if a URL fails, it gets a per-item error and the other URLs still succeed normally",
-    "For per-URL CSS selectors in batch, use the REST API directly: POST /api/v1/batch with urls array containing {url, selector} objects",
-    "check_usage takes no parameters, returns: plan (free|pro|enterprise), usage (count), limit (number or null for enterprise), remaining (number or null), resetsAt (ISO date)",
-    "Error responses include status code and message: 401 (invalid key), 422 (invalid URL/params/selector), 429 (rate limit/quota), 502 (target unreachable), 504 (target timeout)",
-    "REST API base URL: https://www.stripfeed.dev/api/v1. Auth: Authorization: Bearer sf_live_xxx"
-  ]
+  "public_key": "pk_AqYVSL7rnxyp0HirTek9e"
 }
