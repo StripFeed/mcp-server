@@ -228,6 +228,62 @@ curl -X POST "https://www.stripfeed.dev/api/v1/batch" \
 
 Each URL item in the array can be a plain string or an object with `url` and optional `selector`.
 
+### Strategy: Efficient batch_fetch for Product Pages with Minimal Token Usage
+
+To efficiently extract only relevant information from a list of product pages while minimizing token usage for an AI model, combine `batch_fetch` with these strategies:
+
+**Step 1: Use batch_fetch to fetch all pages at once**
+
+Call `batch_fetch` with all product URLs (up to 10 per call):
+
+```
+batch_fetch with urls: [
+  "https://example.com/product/a",
+  "https://example.com/product/b",
+  "https://example.com/product/c",
+  "https://example.com/product/d",
+  "https://example.com/product/e"
+]
+```
+
+This fetches all 5 pages in parallel in a single API call, rather than 5 sequential `fetch_url` calls.
+
+**Step 2: If pages are too large, re-fetch with selectors via the REST API**
+
+If `batch_fetch` returns pages with high token counts (e.g., 10K+ tokens each), use the REST API batch endpoint with per-URL CSS selectors to extract only the product section:
+
+```bash
+curl -X POST "https://www.stripfeed.dev/api/v1/batch" \
+  -H "Authorization: Bearer sf_live_your_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "urls": [
+      {"url": "https://example.com/product/a", "selector": ".product-details"},
+      {"url": "https://example.com/product/b", "selector": ".product-details"},
+      {"url": "https://example.com/product/c", "selector": ".product-details"}
+    ],
+    "model": "claude-sonnet-4-6"
+  }'
+```
+
+**Step 3: Use max_tokens on individual pages if still too large**
+
+For pages that are still large after selector extraction, use `fetch_url` with `max_tokens` to cap the output:
+
+```
+fetch_url with url: "https://example.com/product/a", selector: ".product-details", max_tokens: 1000
+```
+
+This truncates at a paragraph or sentence boundary to stay within 1,000 tokens.
+
+**Token savings summary:**
+- Raw HTML page: ~15,000 tokens
+- After StripFeed Markdown conversion: ~1,500 tokens (90% saved)
+- With CSS selector: ~500 tokens (97% saved)
+- With selector + max_tokens: ~200 tokens (99% saved)
+
+**Monitoring usage:** Call `check_usage` before and after batch operations to track how many API requests you have remaining on your plan.
+
 ### `check_usage`
 
 Check your current monthly API usage and plan limits. Takes no parameters.
@@ -257,6 +313,44 @@ Plan: enterprise
 Usage: 54,200 (unlimited)
 Resets: 2026-04-01T00:00:00.000Z
 ```
+
+## Handling fetch_url Failures and Empty Results
+
+When `fetch_url` fails to process a URL or returns empty content, the MCP server throws an error with a specific status code and message. Here is how an MCP client should interpret and handle each failure mode:
+
+**Network and target failures:**
+
+| Status | Error Message | What Happened | Client Action |
+|--------|--------------|---------------|---------------|
+| 502 | `Target URL unreachable` | The target website is down or DNS failed | Retry after a delay, or inform the user the site is unavailable |
+| 504 | `Target URL timed out` | The target took longer than 10 seconds to respond | Retry once, then fall back to a cached version or inform the user |
+
+**Input validation failures (do not retry):**
+
+| Status | Error Message | What Happened | Client Action |
+|--------|--------------|---------------|---------------|
+| 422 | `Invalid URL` | The URL is malformed or not http/https | Fix the URL and try again |
+| 422 | `No content found matching selector` | The CSS selector matched zero elements on the page | Try without a selector, or use a different selector |
+| 422 | `Invalid format parameter` | The format value is not one of: markdown, json, text, html | Fix the format parameter |
+| 422 | `Invalid max_tokens parameter` | max_tokens is not a positive integer | Fix the parameter value |
+
+**Auth and rate limit failures:**
+
+| Status | Error Message | What Happened | Client Action |
+|--------|--------------|---------------|---------------|
+| 401 | `Missing or invalid Authorization header` | The API key is missing or invalid | Check the STRIPFEED_API_KEY environment variable |
+| 429 | `Rate limit exceeded` | More than 20 requests per second | Wait 1 second and retry |
+| 429 | `Monthly quota exceeded` | Plan limit reached for the month | Call `check_usage` to confirm, then upgrade or wait for reset |
+
+**Empty results:** If `fetch_url` succeeds (no error thrown) but the returned Markdown content is very short or empty, this means the target page had no extractable main content (e.g., a page with only images, or a JavaScript-rendered SPA with no server-side HTML). In this case:
+1. Try using a CSS `selector` to target a specific element
+2. Try fetching with `format: "html"` to see the raw extracted HTML
+3. The page may require JavaScript rendering (not currently supported)
+
+**Retry strategy for MCP clients:**
+- **Retryable errors** (502, 504, 429 rate limit): Retry up to 2 times with exponential backoff (1s, 3s)
+- **Non-retryable errors** (401, 422, 429 quota): Do not retry. Fix the input or check configuration.
+- **Successful but empty**: Try alternative selectors or inform the user the page has no extractable content
 
 ## Error Handling
 
