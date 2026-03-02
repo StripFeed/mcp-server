@@ -1,5 +1,8 @@
 # StripFeed MCP Server
 
+[![npm version](https://img.shields.io/npm/v/@stripfeed/mcp-server)](https://www.npmjs.com/package/@stripfeed/mcp-server)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 <a href="https://glama.ai/mcp/servers/@StripFeed/stripfeed-mcp-server">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@StripFeed/stripfeed-mcp-server/badge" alt="StripFeed MCP Server" />
 </a>
@@ -76,10 +79,12 @@ Convert a single URL to clean Markdown.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | url | string | Yes | URL to fetch and convert |
+| format | string | No | Output format: markdown (default), json, text, html |
 | selector | string | No | CSS selector to extract specific elements |
 | model | string | No | AI model ID for cost tracking |
 | cache | boolean | No | Set to false to bypass cache |
 | ttl | number | No | Cache TTL in seconds (default 3600, max 86400) |
+| max_tokens | number | No | Truncate output to fit within a token budget |
 
 **Example usage in Claude Code:**
 
@@ -100,6 +105,14 @@ Fetch multiple URLs in parallel (up to 10).
 **Example usage in Claude Code:**
 
 > "Fetch the React, Vue, and Svelte docs and compare their approaches to state management"
+
+### `check_usage`
+
+Check your current monthly API usage and plan limits. Takes no parameters.
+
+**Example usage in Claude Code:**
+
+> "How many API calls do I have left this month?"
 
 ## Pricing
 

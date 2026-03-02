@@ -20,9 +20,10 @@ npm start        # Run server (stdio transport)
 
 ## Architecture
 
-Single file (`src/index.ts`). Two tools:
+Single file (`src/index.ts`). Three tools:
 - `fetch_url` - GET /api/v1/fetch (single URL to Markdown)
 - `batch_fetch` - POST /api/v1/batch (up to 10 URLs in parallel)
+- `check_usage` - GET /api/v1/usage (check monthly usage and plan limits)
 
 Requires `STRIPFEED_API_KEY` env var. Communicates via stdio (JSON-RPC).
 

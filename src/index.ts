@@ -24,6 +24,7 @@ interface FetchParams {
   model?: string;
   cache?: boolean;
   ttl?: number;
+  max_tokens?: number;
 }
 
 async function fetchUrl(params: FetchParams): Promise<{
@@ -33,6 +34,7 @@ async function fetchUrl(params: FetchParams): Promise<{
   savingsPercent: string;
   cached: string;
   fetchMs: string;
+  truncated: boolean;
   title?: string;
 }> {
   const apiKey = getApiKey();
@@ -43,6 +45,7 @@ async function fetchUrl(params: FetchParams): Promise<{
   if (params.model) searchParams.set("model", params.model);
   if (params.cache === false) searchParams.set("cache", "false");
   if (params.ttl !== undefined) searchParams.set("ttl", String(params.ttl));
+  if (params.max_tokens !== undefined) searchParams.set("max_tokens", String(params.max_tokens));
 
   const response = await fetch(`${BASE_URL}/fetch?${searchParams}`, {
     headers: { Authorization: `Bearer ${apiKey}` },
@@ -66,6 +69,7 @@ async function fetchUrl(params: FetchParams): Promise<{
     response.headers.get("X-StripFeed-Savings-Percent") ?? "0";
   const cached = response.headers.get("X-StripFeed-Cache") ?? "MISS";
   const fetchMs = response.headers.get("X-StripFeed-Fetch-Ms") ?? "0";
+  const truncated = response.headers.get("X-StripFeed-Truncated") === "true";
 
   const contentType = response.headers.get("content-type") ?? "";
 
@@ -78,6 +82,7 @@ async function fetchUrl(params: FetchParams): Promise<{
       savingsPercent,
       cached,
       fetchMs,
+      truncated,
       title: json.title,
     };
   }
@@ -90,6 +95,7 @@ async function fetchUrl(params: FetchParams): Promise<{
     savingsPercent,
     cached,
     fetchMs,
+    truncated,
   };
 }
 
@@ -103,6 +109,10 @@ server.tool(
   "Convert any URL to clean, token-efficient Markdown. Strips ads, navigation, scripts, and noise. Returns clean content ready for LLM consumption.",
   {
     url: z.string().url().describe("The URL to fetch and convert to Markdown"),
+    format: z
+      .enum(["markdown", "json", "text", "html"])
+      .optional()
+      .describe("Output format: markdown (default), json, text, html"),
     selector: z
       .string()
       .optional()
@@ -123,6 +133,12 @@ server.tool(
       .number()
       .optional()
       .describe("Cache TTL in seconds (default 3600, max 86400)"),
+    max_tokens: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe("Truncate output to fit within this token budget"),
   },
   async (params) => {
     const result = await fetchUrl(params);
@@ -133,6 +149,7 @@ server.tool(
       `Fetch: ${result.fetchMs}ms`,
     ];
     if (result.title) meta.unshift(`Title: ${result.title}`);
+    if (result.truncated) meta.push("Truncated: yes");
 
     return {
       content: [
@@ -208,6 +225,41 @@ server.tool(
       content: [
         { type: "text" as const, text: `${summary}\n\n---\n\n${sections.join("\n\n---\n\n")}` },
       ],
+    };
+  }
+);
+
+server.tool(
+  "check_usage",
+  "Check your current monthly API usage and plan limits.",
+  {},
+  async () => {
+    const apiKey = getApiKey();
+    const response = await fetch(`${BASE_URL}/usage`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      let message: string;
+      try {
+        message = JSON.parse(body).error;
+      } catch {
+        message = body;
+      }
+      throw new Error(`StripFeed API error ${response.status}: ${message}`);
+    }
+
+    const data = await response.json();
+    const lines = [
+      `Plan: ${data.plan}`,
+      `Usage: ${data.usage.toLocaleString()}${data.limit ? ` / ${data.limit.toLocaleString()}` : ' (unlimited)'}`,
+    ];
+    if (data.remaining !== null) lines.push(`Remaining: ${data.remaining.toLocaleString()}`);
+    lines.push(`Resets: ${data.resetsAt}`);
+
+    return {
+      content: [{ type: "text" as const, text: lines.join("\n") }],
     };
   }
 );
